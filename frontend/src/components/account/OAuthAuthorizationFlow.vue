@@ -886,10 +886,10 @@ interface Props {
   initialInputMethod?: AuthInputMethod
   platform?: AccountPlatform // Platform type for different UI/text
   showProjectId?: boolean // New prop to control project ID visibility
-  // oauthState: the state returned when generating the auth URL. For platforms that
+  // initialOAuthState: the state returned when generating the auth URL. For platforms that
   // exchange via state (e.g. CodeBuddy), the "verify auth state" button uses this
   // instead of requiring the user to paste a callback link/state manually.
-  oauthState?: string
+  initialOAuthState?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -981,7 +981,7 @@ const projectId = ref('')
 // effectiveState: prefer the state passed in from the generated auth URL (prop),
 // fall back to a state the user pasted into the input (for non-CodeBuddy flows).
 const effectiveState = computed(() => {
-  const fromProp = (props.oauthState || '').trim()
+  const fromProp = (props.initialOAuthState || '').trim()
   if (fromProp) return fromProp
   return oauthState.value.trim()
 })

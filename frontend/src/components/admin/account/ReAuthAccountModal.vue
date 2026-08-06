@@ -134,7 +134,7 @@
         :method-label="t('admin.accounts.inputMethod')"
         :platform="isOpenAI ? 'openai' : isGemini ? 'gemini' : isAntigravity ? 'antigravity' : isGrok ? 'grok' : isCodeBuddy ? 'codebuddy' : 'anthropic'"
         :show-project-id="isGemini && geminiOAuthType === 'code_assist'"
-        :oauth-state="codeBuddyOAuth.state.value"
+        :initial-oauth-state="codeBuddyOAuth.state.value"
         @generate-url="handleGenerateUrl"
         @cookie-auth="handleCookieAuth"
         @verify-auth-state="handleExchangeCode"

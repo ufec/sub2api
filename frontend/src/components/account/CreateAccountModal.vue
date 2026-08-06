@@ -3248,7 +3248,7 @@
         :session-id="currentSessionId"
         :loading="currentOAuthLoading"
         :error="currentOAuthError"
-        :oauth-state="currentOAuthState"
+        :initial-oauth-state="currentOAuthState"
         :show-help="form.platform === 'anthropic'"
         :show-proxy-warning="form.platform !== 'openai' && form.platform !== 'grok' && !!form.proxy_id"
         :allow-multiple="form.platform === 'anthropic'"
