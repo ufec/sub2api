@@ -7,7 +7,7 @@ import (
 
 func TestSumBillingUsage(t *testing.T) {
 	data := BillingUserResourceData{
-		TotalCount: 6,
+		TotalCount:  6,
 		TotalDosage: 4300,
 		Accounts: []BillingAccount{
 			{AccountID: "1", CycleCapacitySizePrecise: "500", CycleCapacityRemainPrecise: "496.75", CycleCapacityUsedPrecise: "3.25"},

@@ -74,19 +74,19 @@ type CodeBuddyExchangeStateInput struct {
 
 // CodeBuddyTokenInfo 是 CodeBuddy token 交换/刷新的结果（含账号与模型信息）。
 type CodeBuddyTokenInfo struct {
-	AccessToken   string   `json:"access_token"`
-	RefreshToken  string   `json:"refresh_token,omitempty"`
-	TokenType     string   `json:"token_type,omitempty"`
-	ExpiresIn     int64    `json:"expires_in"`
-	ExpiresAt     int64    `json:"expires_at"`
-	UID           string   `json:"uid,omitempty"`
-	Nickname      string   `json:"nickname,omitempty"`
-	UIN           string   `json:"uin,omitempty"`
-	PhoneNumber   string   `json:"phoneNumber,omitempty"`
-	EnabledModels []string                `json:"enabled_models,omitempty"`
-	ModelsMeta    []codebuddy.ModelInfo    `json:"model_meta,omitempty"`
-	Domain        string   `json:"domain,omitempty"`
-	Scope         string   `json:"scope,omitempty"`
+	AccessToken   string                `json:"access_token"`
+	RefreshToken  string                `json:"refresh_token,omitempty"`
+	TokenType     string                `json:"token_type,omitempty"`
+	ExpiresIn     int64                 `json:"expires_in"`
+	ExpiresAt     int64                 `json:"expires_at"`
+	UID           string                `json:"uid,omitempty"`
+	Nickname      string                `json:"nickname,omitempty"`
+	UIN           string                `json:"uin,omitempty"`
+	PhoneNumber   string                `json:"phoneNumber,omitempty"`
+	EnabledModels []string              `json:"enabled_models,omitempty"`
+	ModelsMeta    []codebuddy.ModelInfo `json:"model_meta,omitempty"`
+	Domain        string                `json:"domain,omitempty"`
+	Scope         string                `json:"scope,omitempty"`
 }
 
 // ExchangeState 用 state 换取 token，并依次拉取账号信息与可用模型配置。

@@ -46,12 +46,12 @@ const (
 // 注意：CodeBuddy 接口返回的字段均为驼峰命名（如 accessToken / expiresIn / refreshToken），
 // 必须使用对应的 json tag 才能正确解析。
 type TokenResponse struct {
-	AccessToken       string `json:"accessToken,omitempty"`
-	ExpiresIn         int64  `json:"expiresIn,omitempty"`
-	RefreshExpiresIn  int64  `json:"refreshExpiresIn,omitempty"`
-	RefreshToken      string `json:"refreshToken,omitempty"`
-	TokenType         string `json:"tokenType,omitempty"`
-	SessionState      string `json:"sessionState,omitempty"`
+	AccessToken      string `json:"accessToken,omitempty"`
+	ExpiresIn        int64  `json:"expiresIn,omitempty"`
+	RefreshExpiresIn int64  `json:"refreshExpiresIn,omitempty"`
+	RefreshToken     string `json:"refreshToken,omitempty"`
+	TokenType        string `json:"tokenType,omitempty"`
+	SessionState     string `json:"sessionState,omitempty"`
 	// Domain 是 /v2/plugin/auth/token 返回的用户域标识。
 	Domain string `json:"domain,omitempty"`
 	// Scope 是 /v2/plugin/auth/token 返回的授权范围。
@@ -90,17 +90,17 @@ type ConfigAgent struct {
 // ConfigModel 表示 /v3/config 顶层 models 列表中的单个模型条目
 // （比 agent.models 更全面，是 CodeBuddy 后端真实可用的完整模型目录）。
 type ConfigModel struct {
-	ID                string `json:"id"`
-	Name              string `json:"name"`
-	Credits           string `json:"credits"`
-	DescriptionZh     string `json:"descriptionZh"`
-	DisabledMultimodal bool  `json:"disabledMultimodal"`
-	MaxAllowedSize    int    `json:"maxAllowedSize"`
-	MaxInputTokens    int    `json:"maxInputTokens"`
-	MaxOutputTokens   int    `json:"maxOutputTokens"`
-	SupportsImages    bool   `json:"supportsImages"`
-	SupportsReasoning bool   `json:"supportsReasoning"`
-	SupportsToolCall  bool   `json:"supportsToolCall"`
+	ID                 string `json:"id"`
+	Name               string `json:"name"`
+	Credits            string `json:"credits"`
+	DescriptionZh      string `json:"descriptionZh"`
+	DisabledMultimodal bool   `json:"disabledMultimodal"`
+	MaxAllowedSize     int    `json:"maxAllowedSize"`
+	MaxInputTokens     int    `json:"maxInputTokens"`
+	MaxOutputTokens    int    `json:"maxOutputTokens"`
+	SupportsImages     bool   `json:"supportsImages"`
+	SupportsReasoning  bool   `json:"supportsReasoning"`
+	SupportsToolCall   bool   `json:"supportsToolCall"`
 }
 
 // EffectiveBaseURL 返回规范化后的基地址，空值回退到默认地址。

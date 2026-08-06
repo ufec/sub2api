@@ -62,7 +62,7 @@ func (f *CodeBuddyQuotaFetcher) FetchQuota(ctx context.Context, account *Account
 			Remaining:     usage.Remaining,
 			Used:          usage.Used,
 			AccountCount:  usage.AccountCount,
-			TotalDosage:   raw.Data.Response.Data.TotalDosage,
+			TotalDosage:   rawUsage(raw),
 		},
 	}
 
@@ -77,4 +77,11 @@ func (f *CodeBuddyQuotaFetcher) FetchQuota(ctx context.Context, account *Account
 		UsageInfo: info,
 		Raw:       rawMap,
 	}, nil
+}
+
+func rawUsage(raw *codebuddy.BillingUserResourceResponse) float64 {
+	if raw == nil {
+		return 0
+	}
+	return raw.Data.Response.Data.TotalDosage
 }

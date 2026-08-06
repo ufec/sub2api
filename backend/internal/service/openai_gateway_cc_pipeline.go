@@ -338,10 +338,10 @@ func (s *OpenAIGatewayService) aggregateCCStream(
 		}
 		for _, choice := range chunk.Choices {
 			if choice.Delta.Content != nil {
-				textBuilder.WriteString(*choice.Delta.Content)
+				_, _ = textBuilder.WriteString(*choice.Delta.Content)
 			}
 			if choice.Delta.ReasoningContent != nil {
-				reasoningBuilder.WriteString(*choice.Delta.ReasoningContent)
+				_, _ = reasoningBuilder.WriteString(*choice.Delta.ReasoningContent)
 			}
 			for _, tc := range choice.Delta.ToolCalls {
 				idx := -1
@@ -365,7 +365,7 @@ func (s *OpenAIGatewayService) aggregateCCStream(
 					toolCalls[slot].Function.Name = tc.Function.Name
 				}
 				if tc.Function.Arguments != "" {
-					toolArgs[slot].WriteString(tc.Function.Arguments)
+					_, _ = toolArgs[slot].WriteString(tc.Function.Arguments)
 				}
 			}
 			if choice.FinishReason != nil && *choice.FinishReason != "" {

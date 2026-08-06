@@ -21,10 +21,9 @@ import (
 //   - IsRegex=true：按正则匹配，命中即替换为 Replace（Replace 不支持 $1 反向引用，
 //     仅作固定串替换，保持简单可预期）。
 type SystemPromptBlacklistRule struct {
-	Find     string
-	Replace  string
-	IsRegex  bool
-	compiled *regexp.Regexp
+	Find    string
+	Replace string
+	IsRegex bool
 }
 
 // DefaultSystemPromptBlacklist 是依据 failed/success 对比试出的默认触发词表。
