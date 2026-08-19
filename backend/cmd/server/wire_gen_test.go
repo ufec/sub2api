@@ -37,9 +37,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil,
 		nil,
 		cfg,
-		nil, // tempUnschedCache
-		nil, // grokOAuthService
-		nil, // codeBuddyOAuthService
+		nil,
 	)
 	accountExpirySvc := service.NewAccountExpiryService(nil, time.Second)
 	codexVersionSyncSvc := service.NewOpenAICodexVersionSyncService(nil, nil, nil, time.Second)

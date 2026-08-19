@@ -113,7 +113,7 @@ func (g *Group) ResolveMessagesDispatchModel(requestedModel string) string {
 }
 
 func sanitizeGroupMessagesDispatchFields(g *Group) {
-	if g == nil || g.Platform == PlatformOpenAI || g.Platform == PlatformCodeBuddy {
+	if g == nil || g.Platform == PlatformOpenAI {
 		return
 	}
 	g.AllowMessagesDispatch = false
