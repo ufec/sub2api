@@ -58,6 +58,9 @@ func RegisterAdminRoutes(
 		// Grok OAuth
 		registerGrokOAuthRoutes(admin, h)
 
+		// CodeBuddy OAuth
+		registerCodeBuddyOAuthRoutes(admin, h)
+
 		// 国产供应商（kimi/zhipu/deepseek）额度与余额
 		registerCNProviderRoutes(admin, h)
 
@@ -482,6 +485,18 @@ func registerGrokOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		grok.GET("/accounts/:id/quota", h.Admin.GrokOAuth.QueryQuota)
 		grok.POST("/accounts/:id/reset-quota", h.Admin.GrokOAuth.ResetQuota)
 		grok.GET("/runtime-sanity", h.Admin.GrokOAuth.RuntimeSanity)
+	}
+}
+
+func registerCodeBuddyOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	cb := admin.Group("/codebuddy")
+	{
+		cb.POST("/oauth/auth-url", h.Admin.CodeBuddyOAuth.GenerateAuthURL)
+		cb.POST("/oauth/exchange-state", h.Admin.CodeBuddyOAuth.ExchangeState)
+		cb.POST("/oauth/refresh-token", h.Admin.CodeBuddyOAuth.RefreshToken)
+		cb.POST("/oauth/create-from-oauth", h.Admin.CodeBuddyOAuth.CreateAccountFromOAuth)
+		cb.POST("/accounts/:id/refresh", h.Admin.CodeBuddyOAuth.RefreshAccountToken)
+		cb.GET("/runtime-sanity", h.Admin.CodeBuddyOAuth.RuntimeSanity)
 	}
 }
 

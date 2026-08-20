@@ -93,6 +93,7 @@ const platformLabel = computed(() => {
   if (props.platform === 'kimi') return 'Kimi'
   if (props.platform === 'zhipu') return 'Zhipu GLM'
   if (props.platform === 'deepseek') return 'DeepSeek'
+  if (props.platform === 'codebuddy') return 'CodeBuddy/WorkBuddy'
   return 'Gemini'
 })
 

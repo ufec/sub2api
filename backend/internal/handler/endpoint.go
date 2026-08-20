@@ -17,6 +17,7 @@ import (
 const (
 	EndpointMessages             = "/v1/messages"
 	EndpointChatCompletions      = "/v1/chat/completions"
+	EndpointCodeBuddyChatCompletions = "/v2/chat/completions"
 	EndpointEmbeddings           = "/v1/embeddings"
 	EndpointAlphaSearch          = "/v1/alpha/search"
 	EndpointResponses            = "/v1/responses"
@@ -222,6 +223,9 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 
 	case service.PlatformGemini:
 		return EndpointGeminiModels
+
+	case service.PlatformCodeBuddy:
+		return EndpointCodeBuddyChatCompletions
 
 	case service.PlatformAntigravity:
 		// Antigravity accounts serve both Claude and Gemini.

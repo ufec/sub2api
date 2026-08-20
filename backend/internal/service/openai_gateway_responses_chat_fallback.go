@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/codebuddy"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
@@ -26,6 +27,9 @@ func (s *OpenAIGatewayService) forwardResponsesViaRawChatCompletions(
 	body []byte,
 ) (*OpenAIForwardResult, error) {
 	startTime := time.Now()
+	if account.Platform == PlatformCodeBuddy {
+		SetActualOpenAIUpstreamEndpoint(c, codebuddy.ChatCompletionsPath)
+	}
 
 	var responsesReq apicompat.ResponsesRequest
 	if err := json.Unmarshal(body, &responsesReq); err != nil {
@@ -71,7 +75,11 @@ func (s *OpenAIGatewayService) forwardResponsesViaRawChatCompletions(
 	// 国产模型默认 effort 补充：需要 mappedModel 判定，推迟到 billingModel 算出之后。
 	reasoningEffort = ApplyThinkingEnabledFallback(reasoningEffort, body, billingModel)
 	chatReq.Model = upstreamModel
-	if clientStream {
+	// CodeBuddy 上游不支持非流式 chat 请求（返回 11101），强制以流式转发。
+	// 客户端原始偏好仅决定响应形态：流式透传，非流式则在网关侧聚合为单条响应。
+	upstreamStream := clientStream || account.Platform == PlatformCodeBuddy
+	chatReq.Stream = upstreamStream
+	if upstreamStream {
 		chatReq.StreamOptions = &apicompat.ChatStreamOptions{IncludeUsage: true}
 	}
 
@@ -104,7 +112,7 @@ func (s *OpenAIGatewayService) forwardResponsesViaRawChatCompletions(
 	if err != nil {
 		return nil, err
 	}
-	resp, err := s.sendCCUpstreamRequest(ctx, c, account, targetURL, chatBody, clientStream, apiKey, account.GetOpenAIUserAgent(), "")
+	resp, err := s.sendCCUpstreamRequest(ctx, c, account, targetURL, chatBody, upstreamStream, apiKey, account.GetOpenAIUserAgent(), "")
 	if err != nil {
 		return nil, err
 	}
@@ -118,10 +126,60 @@ func (s *OpenAIGatewayService) forwardResponsesViaRawChatCompletions(
 		return s.handleErrorResponse(ctx, resp, c, account, chatBody, billingModel)
 	}
 
+	var result *OpenAIForwardResult
 	if clientStream {
-		return s.streamChatCompletionsAsResponses(c, resp, originalModel, customTools, toolSearch, namespaceTools, billingModel, upstreamModel, reasoningEffort, serviceTier, startTime)
+		result, err = s.streamChatCompletionsAsResponses(c, resp, originalModel, customTools, toolSearch, namespaceTools, billingModel, upstreamModel, reasoningEffort, serviceTier, startTime)
+	} else if upstreamStream {
+		result, err = s.bufferChatCompletionsAsResponsesViaStream(c, resp, originalModel, customTools, toolSearch, namespaceTools, billingModel, upstreamModel, reasoningEffort, serviceTier, startTime)
+	} else {
+		result, err = s.bufferChatCompletionsAsResponses(c, resp, originalModel, customTools, toolSearch, namespaceTools, billingModel, upstreamModel, reasoningEffort, serviceTier, startTime)
 	}
-	return s.bufferChatCompletionsAsResponses(c, resp, originalModel, customTools, toolSearch, namespaceTools, billingModel, upstreamModel, reasoningEffort, serviceTier, startTime)
+	if result != nil && account.Platform == PlatformCodeBuddy {
+		result.UpstreamEndpoint = codebuddy.ChatCompletionsPath
+	}
+	return result, err
+}
+
+// bufferChatCompletionsAsResponsesViaStream 用于上游仅支持流式、但客户端要求非流式的场景
+// （如 CodeBuddy）。它消费上游的 OpenAI 流式 SSE，在内存中聚合成完整的 Chat Completions 响应，
+// 再复用 ChatCompletionsResponseToResponses 转换为单条 Responses 非流式响应返回。
+func (s *OpenAIGatewayService) bufferChatCompletionsAsResponsesViaStream(
+	c *gin.Context,
+	resp *http.Response,
+	originalModel string,
+	customTools map[string]bool,
+	toolSearch bool,
+	namespaceTools map[string]apicompat.NamespacedToolName,
+	billingModel string,
+	upstreamModel string,
+	reasoningEffort *string,
+	serviceTier *string,
+	startTime time.Time,
+) (*OpenAIForwardResult, error) {
+	requestID := resp.Header.Get("x-request-id")
+	aggregated, scan := s.aggregateCCStream(resp, "openai responses chat fallback (buffered stream)", requestID, startTime, upstreamModel)
+	if scan.Err != nil {
+		writeOpenAIResponsesFallbackError(c, http.StatusBadGateway, "upstream_error", "Failed to read upstream stream")
+		return nil, fmt.Errorf("stream usage incomplete: %w", scan.Err)
+	}
+	responsesResp := apicompat.ChatCompletionsResponseToResponses(aggregated, originalModel, customTools, toolSearch, namespaceTools)
+	s.cacheReasoningItemsFromOutput(responsesResp.Output)
+	if s.responseHeaderFilter != nil {
+		responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
+	}
+	c.Writer.Header().Set("Content-Type", "application/json")
+	c.JSON(http.StatusOK, responsesResp)
+	return &OpenAIForwardResult{
+		RequestID:       requestID,
+		Usage:           openAIUsageFromChatCompletions(aggregated.Usage),
+		Model:           originalModel,
+		BillingModel:    billingModel,
+		UpstreamModel:   upstreamModel,
+		ReasoningEffort: reasoningEffort,
+		ServiceTier:     serviceTier,
+		Stream:          false,
+		Duration:        time.Since(startTime),
+	}, nil
 }
 
 func (s *OpenAIGatewayService) bufferChatCompletionsAsResponses(

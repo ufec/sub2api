@@ -430,6 +430,7 @@ export function getModelsByPlatform(platform: string): string[] {
     case 'grok': return xaiModels
     case 'cohere': return cohereModels
     case 'yi': return yiModels
+    case 'codebuddy': return [] // CodeBuddy 模型动态来自 /v3/config，无硬编码白名单
     case 'moonshot':
     case 'kimi': return moonshotModels
     case 'doubao': return doubaoModels
