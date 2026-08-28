@@ -464,7 +464,14 @@ export default {
         grokLastProbe: '探测 {time}',
         grokLastHeadersSeen: '响应头 {time}',
         passiveSampled: '被动采样',
-        activeQuery: '查询'
+        activeQuery: '查询',
+        codebuddy: {
+          title: 'CodeBuddy 额度',
+          remaining: '剩余',
+          used: '已用',
+          total: '总额',
+          accountCount: '账号数'
+        }
       },
       openaiQuotaReset: {
         count: '次数',
@@ -780,6 +787,10 @@ export default {
         uploadPreviewAlt: '上传预览',
         fileReadFailed: '读取所选文件失败',
         noResponseBody: '服务器未返回响应体'
+      },
+      codebuddy: {
+        baseUrlHint: 'CodeBuddy/WorkBuddy OAuth 账号默认转发到 https://copilot.tencent.com。',
+        apiKeyHint: 'CodeBuddy/WorkBuddy 订阅支持使用 OAuth refresh token；API Key 账号不在本次范围内。'
       },
       anthropic: {
         apiKeyPassthrough: '自动透传（仅替换认证）',
@@ -1225,6 +1236,51 @@ export default {
               '找不到所选代理。请选择可用代理后重试。'
           },
           oauthOnlyHint: '首版 Grok 支持仅包含 OAuth 订阅的 Responses API 文本/推理转发。'
+        },
+        // CodeBuddy/WorkBuddy specific
+        codebuddy: {
+          title: 'CodeBuddy/WorkBuddy 账户授权',
+          followSteps: '请按照以下步骤完成 CodeBuddy/WorkBuddy（腾讯）账户的授权：',
+          step1GenerateUrl: '生成 CodeBuddy/WorkBuddy 授权链接',
+          generateAuthUrl: '生成授权链接',
+          step2OpenUrl: '在浏览器中打开链接并完成授权',
+          openUrlDesc: '请在新标签页中打开授权链接，登录您的腾讯/CodeBuddy/WorkBuddy 账户并授权。',
+          importantNotice: '在浏览器中完成授权后，直接返回本页面点击“校验认证状态”即可，无需复制任何内容。',
+          step3EnterCode: '校验认证状态',
+          authCodeDesc: '完成浏览器授权后，点击下方“校验认证状态”按钮，系统将使用生成授权链接时的 state 自动换取 Token。',
+          authCode: '授权链接或 State',
+          authCodePlaceholder: '粘贴完整回调链接或 state 值',
+          authCodeHint: 'CodeBuddy/WorkBuddy 使用 OAuth state（无需 authorization code）完成兑换。',
+          verifyAuthState: '校验认证状态',
+          verifyingAuthState: '校验中...',
+          verifyAuthStateHint: '使用生成授权链接时返回的 state 向 CodeBuddy/WorkBuddy 换取 access_token 与 refresh_token。',
+          refreshTokenAuth: '手动填写 RT',
+          refreshTokenDesc: '输入已有的 CodeBuddy/WorkBuddy refresh token，支持批量（每行一个）。',
+          refreshTokenPlaceholder: '粘贴您的 CodeBuddy/WorkBuddy refresh token...\n支持多个，每行一个',
+          validating: '校验中...',
+          validateAndCreate: '校验并创建账户',
+          pleaseEnterRefreshToken: '请输入 Refresh Token',
+          refreshToken: '刷新 Token',
+          failedToGenerateUrl: '生成 CodeBuddy/WorkBuddy 授权链接失败',
+          missingExchangeParams: '缺少 OAuth state 或会话',
+          failedToExchangeState: 'CodeBuddy/WorkBuddy state 兑换失败',
+          failedToValidateRT: 'CodeBuddy/WorkBuddy refresh token 校验失败',
+          authFailed: 'CodeBuddy/WorkBuddy 授权失败',
+          errors: {
+            CODEBUDDY_OAUTH_SESSION_NOT_FOUND:
+              'CodeBuddy/WorkBuddy OAuth 会话未找到或已过期。请重新生成授权链接并粘贴最新的回调链接。',
+            CODEBUDDY_OAUTH_STATE_REQUIRED:
+              '回调链接缺少 OAuth state。请粘贴完整的回调链接。',
+            CODEBUDDY_OAUTH_INVALID_STATE:
+              'CodeBuddy/WorkBuddy OAuth state 与本次会话不匹配。请使用同一授权链接产生的回调链接。',
+            CODEBUDDY_OAUTH_NO_REFRESH_TOKEN:
+              'CodeBuddy/WorkBuddy 响应未包含 refresh token。请重新授权并再次授予离线访问权限。',
+            CODEBUDDY_OAUTH_PROXY_NOT_AVAILABLE:
+              'CodeBuddy/WorkBuddy OAuth 代理查询不可用。请检查所选代理后重试。',
+            CODEBUDDY_OAUTH_PROXY_NOT_FOUND:
+              '未找到所选代理。请选择可用代理后重试。'
+          },
+          oauthOnlyHint: '首版 CodeBuddy/WorkBuddy 支持仅包含 OAuth 订阅的 OpenAI 兼容 Chat Completions 与 Responses 转发。'
         },
         // Gemini specific
         gemini: {
