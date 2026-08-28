@@ -170,7 +170,7 @@ func (s *OpenAIGatewayService) bufferChatCompletionsAsAnthropicViaStream(
 ) (*OpenAIForwardResult, error) {
 	requestID := resp.Header.Get("x-request-id")
 
-	aggregated, scan := s.aggregateCCStream(resp, "openai messages chat fallback (buffered stream)", requestID, startTime, upstreamModel)
+	aggregated, scan := s.aggregateCCStream(c, resp, "openai messages chat fallback (buffered stream)", requestID, startTime, upstreamModel)
 
 	if scan.Err != nil {
 		writeAnthropicError(c, http.StatusBadGateway, "api_error", "Failed to read upstream stream")
@@ -228,7 +228,7 @@ func (s *OpenAIGatewayService) bufferChatCompletionsAsAnthropic(
 		BillingModel:    billingModel,
 		UpstreamModel:   upstreamModel,
 		ReasoningEffort: reasoningEffort,
-		ServiceTier:     serviceTier,
+		ServiceTier:     resolvedOpenAIUpstreamServiceTier(c, serviceTier),
 		Stream:          false,
 		Duration:        time.Since(startTime),
 	}, nil
@@ -274,7 +274,7 @@ func (s *OpenAIGatewayService) streamChatCompletionsAsAnthropic(
 		}
 	}
 
-	scan := s.scanCCStream(resp, "openai messages chat fallback", requestID, startTime, emitChunk)
+	scan := s.scanCCStream(c, resp, "openai messages chat fallback", requestID, startTime, emitChunk)
 	usage := scan.Usage
 
 	if scan.Err != nil {
@@ -288,7 +288,7 @@ func (s *OpenAIGatewayService) streamChatCompletionsAsAnthropic(
 			BillingModel:     billingModel,
 			UpstreamModel:    upstreamModel,
 			ReasoningEffort:  reasoningEffort,
-			ServiceTier:      serviceTier,
+			ServiceTier:      resolvedOpenAIUpstreamServiceTier(c, serviceTier),
 			Stream:           true,
 			Duration:         time.Since(startTime),
 			FirstTokenMs:     scan.FirstTokenMs,
@@ -323,7 +323,7 @@ func (s *OpenAIGatewayService) streamChatCompletionsAsAnthropic(
 		BillingModel:     billingModel,
 		UpstreamModel:    upstreamModel,
 		ReasoningEffort:  reasoningEffort,
-		ServiceTier:      serviceTier,
+		ServiceTier:      resolvedOpenAIUpstreamServiceTier(c, serviceTier),
 		Stream:           true,
 		Duration:         time.Since(startTime),
 		FirstTokenMs:     scan.FirstTokenMs,
