@@ -204,7 +204,11 @@ func (s *OpenAIGatewayService) sendCCUpstreamRequest(
 	// 记录本次实际选择的协议端点，供错误日志和用量日志在没有
 	// OpenAIForwardResult（例如 503/传输失败）时使用。每次发送都覆盖，
 	// 避免 Gin context 在账号 failover 尝试之间残留旧端点。
-	SetActualOpenAIUpstreamEndpoint(c, "/v1/chat/completions")
+	// CodeBuddy 等平台在调用前已按真实上游端点打过标签（/v2/chat/completions），
+	// 此处仅在该标签缺失或为默认值时回填 CC 默认端点，避免覆盖平台特有端点。
+	if ep := GetActualOpenAIUpstreamEndpoint(c); ep == "" || ep == grokChatRawEndpoint {
+		SetActualOpenAIUpstreamEndpoint(c, "/v1/chat/completions")
+	}
 	upstreamReq = upstreamReq.WithContext(WithHTTPUpstreamProfile(upstreamReq.Context(), HTTPUpstreamProfileOpenAI))
 	upstreamReq.Header.Set("Content-Type", "application/json")
 	upstreamReq.Header.Set("Authorization", "Bearer "+bearerToken)

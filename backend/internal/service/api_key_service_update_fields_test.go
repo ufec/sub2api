@@ -17,12 +17,20 @@ type updateFieldsAPIKeyRepoStub struct {
 	quotaBaseAPIKeyRepoStub
 	key          *APIKey
 	updateFields []APIKeyUpdateFields
+	lastFields   APIKeyUpdateFields
 }
 
 // IncrementQuotaUsed 模拟计费热路径上的原子递增：只动 quota_used。
 func (s *updateFieldsAPIKeyRepoStub) IncrementQuotaUsed(_ context.Context, _ int64, amount float64) (float64, error) {
 	s.key.QuotaUsed += amount
 	return s.key.QuotaUsed, nil
+}
+
+// Create 记录创建的 Key（默认 panic 的桩不足以覆盖 Create 路径测试）。
+func (s *updateFieldsAPIKeyRepoStub) Create(_ context.Context, key *APIKey) error {
+	clone := *key
+	s.key = &clone
+	return nil
 }
 
 func (s *updateFieldsAPIKeyRepoStub) GetByID(context.Context, int64) (*APIKey, error) {
@@ -32,6 +40,7 @@ func (s *updateFieldsAPIKeyRepoStub) GetByID(context.Context, int64) (*APIKey, e
 
 func (s *updateFieldsAPIKeyRepoStub) Update(_ context.Context, _ *APIKey, fields APIKeyUpdateFields) error {
 	s.updateFields = append(s.updateFields, fields)
+	s.lastFields = fields
 	return nil
 }
 

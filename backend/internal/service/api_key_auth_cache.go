@@ -26,6 +26,10 @@ type APIKeyAuthSnapshot struct {
 	RateLimit5h float64 `json:"rate_limit_5h"`
 	RateLimit1d float64 `json:"rate_limit_1d"`
 	RateLimit7d float64 `json:"rate_limit_7d"`
+
+	// AllowedModels Key 级模型白名单（空 = 不限制）。网关入口校验读取认证快照，
+	// 必须随缓存走；apiKeyAuthSnapshotVersion 已随本字段递增以强制刷新旧快照。
+	AllowedModels []string `json:"allowed_models,omitempty"`
 }
 
 // APIKeyAuthUserSnapshot 用户快照

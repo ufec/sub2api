@@ -595,6 +595,38 @@
           </div>
         </div>
 
+        <!-- Model Whitelist Section -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <label class="input-label mb-0">{{ t('keys.modelWhitelist') }}</label>
+            <button
+              type="button"
+              @click="formData.enable_model_restriction = !formData.enable_model_restriction"
+              :class="[
+                'relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none',
+                formData.enable_model_restriction ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
+              ]"
+            >
+              <span
+                :class="[
+                  'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                  formData.enable_model_restriction ? 'translate-x-4' : 'translate-x-0'
+                ]"
+              />
+            </button>
+          </div>
+
+          <div v-if="formData.enable_model_restriction">
+            <textarea
+              v-model="formData.allowed_models_text"
+              rows="4"
+              class="input font-mono text-sm"
+              :placeholder="t('keys.modelWhitelistPlaceholder')"
+            />
+            <p class="input-hint">{{ t('keys.modelWhitelistHint') }}</p>
+          </div>
+        </div>
+
         <!-- Quota Limit Section -->
         <div class="space-y-3">
           <label class="input-label">{{ t('keys.quotaLimit') }}</label>
@@ -1336,6 +1368,9 @@ const formData = ref({
   enable_ip_restriction: false,
   ip_whitelist: '',
   ip_blacklist: '',
+  // Key-level model whitelist (empty list = all models allowed)
+  enable_model_restriction: false,
+  allowed_models_text: '',
   // Quota settings (empty = unlimited)
   enable_quota: false,
   quota: null as number | null,
@@ -1570,6 +1605,8 @@ const editKey = (key: ApiKey) => {
     enable_ip_restriction: hasIPRestriction,
     ip_whitelist: (key.ip_whitelist || []).join('\n'),
     ip_blacklist: (key.ip_blacklist || []).join('\n'),
+    enable_model_restriction: (key.allowed_models?.length ?? 0) > 0,
+    allowed_models_text: (key.allowed_models || []).join('\n'),
     enable_quota: key.quota > 0,
     quota: key.quota > 0 ? key.quota : null,
     enable_rate_limit: (key.rate_limit_5h > 0) || (key.rate_limit_1d > 0) || (key.rate_limit_7d > 0),
@@ -1686,6 +1723,20 @@ const handleSubmit = async () => {
   const ipWhitelist = formData.value.enable_ip_restriction ? parseIPList(formData.value.ip_whitelist) : []
   const ipBlacklist = formData.value.enable_ip_restriction ? parseIPList(formData.value.ip_blacklist) : []
 
+  // Key-level model whitelist (backend supports trailing-* wildcards)
+  const parseModelList = (text: string): string[] => {
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const raw of text.split('\n')) {
+      const model = raw.trim()
+      if (!model || seen.has(model)) continue
+      seen.add(model)
+      out.push(model)
+    }
+    return out
+  }
+  const allowedModels = formData.value.enable_model_restriction ? parseModelList(formData.value.allowed_models_text) : []
+
   // Calculate quota value (null/empty/0 = unlimited, stored as 0)
   const quota = formData.value.quota && formData.value.quota > 0 ? formData.value.quota : 0
 
@@ -1723,6 +1774,7 @@ const handleSubmit = async () => {
         group_id: formData.value.group_id,
         ip_whitelist: ipWhitelist,
         ip_blacklist: ipBlacklist,
+        allowed_models: allowedModels,
         quota: quota,
         expires_at: expiresAt,
         rate_limit_5h: rateLimitData.rate_limit_5h,
@@ -1744,7 +1796,8 @@ const handleSubmit = async () => {
         ipBlacklist,
         quota,
         expiresInDays,
-        rateLimitData
+        rateLimitData,
+        allowedModels
       )
       appStore.showSuccess(t('keys.keyCreatedSuccess'))
       // Only advance tour if active, on submit step, and creation succeeded
@@ -1796,6 +1849,8 @@ const closeModals = () => {
     enable_ip_restriction: false,
     ip_whitelist: '',
     ip_blacklist: '',
+    enable_model_restriction: false,
+    allowed_models_text: '',
     enable_quota: false,
     quota: null,
     enable_rate_limit: false,

@@ -63,6 +63,9 @@ func (r *apiKeyRepository) Create(ctx context.Context, key *service.APIKey) erro
 	if len(key.IPBlacklist) > 0 {
 		builder.SetIPBlacklist(key.IPBlacklist)
 	}
+	if len(key.AllowedModels) > 0 {
+		builder.SetAllowedModels(key.AllowedModels)
+	}
 
 	created, err := builder.Save(ctx)
 	if err == nil {
@@ -138,6 +141,7 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 			apikey.FieldStatus,
 			apikey.FieldIPWhitelist,
 			apikey.FieldIPBlacklist,
+			apikey.FieldAllowedModels,
 			apikey.FieldQuota,
 			apikey.FieldQuotaUsed,
 			apikey.FieldExpiresAt,
@@ -323,6 +327,15 @@ func (r *apiKeyRepository) Update(ctx context.Context, key *service.APIKey, fiel
 			builder.SetIPBlacklist(key.IPBlacklist)
 		} else {
 			builder.ClearIPBlacklist()
+		}
+	}
+
+	// Key 级模型白名单（空列表 = 清空 = 不限制）
+	if fields.AllowedModels {
+		if len(key.AllowedModels) > 0 {
+			builder.SetAllowedModels(key.AllowedModels)
+		} else {
+			builder.ClearAllowedModels()
 		}
 	}
 
@@ -876,6 +889,7 @@ func apiKeyEntityToService(m *dbent.APIKey) *service.APIKey {
 		Status:        m.Status,
 		IPWhitelist:   m.IPWhitelist,
 		IPBlacklist:   m.IPBlacklist,
+		AllowedModels: m.AllowedModels,
 		LastUsedAt:    m.LastUsedAt,
 		CreatedAt:     m.CreatedAt,
 		UpdatedAt:     m.UpdatedAt,

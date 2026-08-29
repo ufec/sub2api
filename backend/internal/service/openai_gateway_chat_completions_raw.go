@@ -163,13 +163,18 @@ func (s *OpenAIGatewayService) forwardAsRawChatCompletions(
 	}
 
 	if account.Platform == PlatformCodeBuddy {
+		// CodeBuddy 上游强制流式；include_usage 保证计费完整（fork 行为，
+		// 对应 CodeBuddyUsesV2ChatCompletions 契约测试）。
 		var usageErr error
 		upstreamBody, usageErr = sjson.SetBytes(upstreamBody, "stream", true)
 		if usageErr != nil {
 			return nil, fmt.Errorf("enable upstream stream: %w", usageErr)
 		}
-	}
-	if clientStream {
+		upstreamBody, usageErr = ensureOpenAIChatStreamUsage(upstreamBody)
+		if usageErr != nil {
+			return nil, fmt.Errorf("enable stream usage: %w", usageErr)
+		}
+	} else if clientStream {
 		var usageErr error
 		upstreamBody, usageErr = ensureOpenAIChatStreamUsage(upstreamBody)
 		if usageErr != nil {

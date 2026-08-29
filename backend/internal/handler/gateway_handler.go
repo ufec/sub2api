@@ -1092,14 +1092,16 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 		availableModels := h.compositeAvailableModels(c.Request.Context(), groupID)
 		if apiKey != nil && apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled() {
 			availableModels = filterModelsByCustomList(availableModels, defaultModelIDsForPlatform(service.PlatformComposite), apiKey.Group.ModelsListConfig.Models)
+			availableModels = filterModelsByKeyWhitelist(availableModels, apiKey)
 			writeCustomModelsList(c, service.PlatformComposite, availableModels)
 			return
 		}
+		availableModels = filterModelsByKeyWhitelist(availableModels, apiKey)
 		if len(availableModels) > 0 {
 			writeModelsList(c, service.PlatformComposite, availableModels)
 			return
 		}
-		writeModelsList(c, service.PlatformComposite, defaultModelIDsForPlatform(service.PlatformComposite))
+		writeModelsList(c, service.PlatformComposite, filterModelsByKeyWhitelist(defaultModelIDsForPlatform(service.PlatformComposite), apiKey))
 		return
 	}
 
@@ -1108,12 +1110,24 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 	if apiKey != nil && apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled() {
 		fallbackModels := defaultModelIDsForPlatform(platform)
 		availableModels = filterModelsByCustomList(customModelsListSource(platform, availableModels, fallbackModels), fallbackModels, apiKey.Group.ModelsListConfig.Models)
+		availableModels = filterModelsByKeyWhitelist(availableModels, apiKey)
 		writeCustomModelsList(c, platform, availableModels)
 		return
 	}
 
+	// Key 级模型白名单：过滤展示列表，与请求侧 RequireAllowedModels 校验一致。
+	availableModels = filterModelsByKeyWhitelist(availableModels, apiKey)
+
 	if len(availableModels) > 0 {
 		writeModelsList(c, platform, availableModels)
+		return
+	}
+
+	// Key 配置了白名单时，平台默认回落列表也按白名单过滤，
+	// 避免展示 Key 实际不可用的模型。
+	defaultFallback := filterModelsByKeyWhitelist(defaultModelIDsForPlatform(platform), apiKey)
+	if len(defaultFallback) > 0 {
+		writeModelsList(c, platform, defaultFallback)
 		return
 	}
 

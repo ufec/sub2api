@@ -52,6 +52,10 @@ type APIKey struct {
 	QuotaUsed float64    // Used quota amount
 	ExpiresAt *time.Time // Expiration time (nil = never expires)
 
+	// AllowedModels Key 级模型白名单（api_keys.allowed_models）。
+	// 空 = 不限制；非空 = 精确或末尾通配符匹配，见 IsModelAllowed。
+	AllowedModels []string
+
 	// Rate limit fields
 	RateLimit5h   float64    // Rate limit in USD per 5h (0 = unlimited)
 	RateLimit1d   float64    // Rate limit in USD per 1d (0 = unlimited)

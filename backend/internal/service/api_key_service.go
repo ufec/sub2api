@@ -75,6 +75,8 @@ type APIKeyUpdateFields struct {
 	RateLimitUsage bool
 	// IPRules 覆盖 ip_whitelist 与 ip_blacklist。
 	IPRules bool
+	// AllowedModels 覆盖 allowed_models 模型白名单。
+	AllowedModels bool
 }
 
 // IsEmpty 报告该次 Update 是否不写任何列。
@@ -219,6 +221,9 @@ type CreateAPIKeyRequest struct {
 	Quota         float64 `json:"quota"`           // Quota limit in USD (0 = unlimited)
 	ExpiresInDays *int    `json:"expires_in_days"` // Days until expiry (nil = never expires)
 
+	// AllowedModels Key 级模型白名单（空 = 不限制）。
+	AllowedModels []string `json:"allowed_models"`
+
 	// Rate limit fields (0 = unlimited)
 	RateLimit5h float64 `json:"rate_limit_5h"`
 	RateLimit1d float64 `json:"rate_limit_1d"`
@@ -232,6 +237,8 @@ type UpdateAPIKeyRequest struct {
 	Status      *string   `json:"status"`
 	IPWhitelist *[]string `json:"ip_whitelist"` // IP 白名单（nil 不修改，空数组清空）
 	IPBlacklist *[]string `json:"ip_blacklist"` // IP 黑名单（nil 不修改，空数组清空）
+	// AllowedModels Key 级模型白名单（nil 不修改，空数组清空 = 不限制）。
+	AllowedModels *[]string `json:"allowed_models"`
 
 	// Quota fields
 	Quota           *float64   `json:"quota"`       // Quota limit in USD (nil = no change, 0 = unlimited)
@@ -482,6 +489,11 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		}
 	}
 
+	// 验证 Key 级模型白名单格式（"*" 只允许作为末尾通配符）
+	if err := ValidateAPIKeyAllowedModels(req.AllowedModels); err != nil {
+		return nil, err
+	}
+
 	// 验证分组权限（如果指定了分组）
 	if req.GroupID != nil {
 		group, err := s.groupRepo.GetByID(ctx, *req.GroupID)
@@ -532,18 +544,19 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 
 	// 创建API Key记录
 	apiKey := &APIKey{
-		UserID:      userID,
-		Key:         key,
-		Name:        html.EscapeString(req.Name),
-		GroupID:     req.GroupID,
-		Status:      StatusActive,
-		IPWhitelist: req.IPWhitelist,
-		IPBlacklist: req.IPBlacklist,
-		Quota:       req.Quota,
-		QuotaUsed:   0,
-		RateLimit5h: req.RateLimit5h,
-		RateLimit1d: req.RateLimit1d,
-		RateLimit7d: req.RateLimit7d,
+		UserID:        userID,
+		Key:           key,
+		Name:          html.EscapeString(req.Name),
+		GroupID:       req.GroupID,
+		Status:        StatusActive,
+		IPWhitelist:   req.IPWhitelist,
+		IPBlacklist:   req.IPBlacklist,
+		AllowedModels: NormalizeAPIKeyAllowedModels(req.AllowedModels),
+		Quota:         req.Quota,
+		QuotaUsed:     0,
+		RateLimit5h:   req.RateLimit5h,
+		RateLimit1d:   req.RateLimit1d,
+		RateLimit7d:   req.RateLimit7d,
 	}
 
 	// Set expiration time if specified
@@ -867,6 +880,16 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 	if req.IPBlacklist != nil {
 		apiKey.IPBlacklist = *req.IPBlacklist
 		fields.IPRules = true
+	}
+
+	// 更新 Key 级模型白名单（nil 不修改，空数组清空 = 不限制）
+	if req.AllowedModels != nil {
+		allowed := NormalizeAPIKeyAllowedModels(*req.AllowedModels)
+		if err := ValidateAPIKeyAllowedModels(allowed); err != nil {
+			return nil, err
+		}
+		apiKey.AllowedModels = allowed
+		fields.AllowedModels = true
 	}
 
 	// Update rate limit configuration
