@@ -672,6 +672,15 @@ type adminServiceImpl struct {
 	compositeResolver    *CompositeRouteResolver
 	// 分组平台变更后用来失效渠道缓存；可为 nil（缓存会在 TTL 到期后自然重建）
 	channelCacheInvalidator ChannelCacheInvalidator
+	// codeBuddyTokenProvider 用于 CodeBuddy 分组实时拉取上游可用模型；
+	// 通过 SetCodeBuddyTokenProvider 注入（wire 不生成方法调用，见 ProvideAdminService）。
+	codeBuddyTokenProvider CodeBuddyCandidateTokenProvider
+}
+
+// CodeBuddyCandidateTokenProvider 按账号提供有效 access_token（过期自动刷新）。
+// 窄接口，避免 admin 服务依赖整个 CodeBuddyTokenProvider——与 ChannelCacheInvalidator 同一思路。
+type CodeBuddyCandidateTokenProvider interface {
+	GetAccessToken(ctx context.Context, account *Account) (string, error)
 }
 
 // ChannelCacheInvalidator 失效渠道缓存。
@@ -689,6 +698,8 @@ type userGroupRateBatchReader interface {
 }
 
 // NewAdminService creates a new AdminService
+// 返回具体类型 *adminServiceImpl：ProvideAdminService 需要在包装为 AdminService
+// 接口前调用 SetCodeBuddyTokenProvider（与 NewOpenAIGatewayService 同一模式）。
 func NewAdminService(
 	userRepo UserRepository,
 	groupRepo AdminGroupRepository,
@@ -712,7 +723,7 @@ func NewAdminService(
 	compositeRouteRepo CompositeModelRouteRepository,
 	compositeResolver *CompositeRouteResolver,
 	channelCacheInvalidator ChannelCacheInvalidator,
-) AdminService {
+) *adminServiceImpl {
 	return &adminServiceImpl{
 		userRepo:             userRepo,
 		groupRepo:            groupRepo,
@@ -741,4 +752,9 @@ func NewAdminService(
 
 		channelCacheInvalidator: channelCacheInvalidator,
 	}
+}
+
+// SetCodeBuddyTokenProvider 注入 CodeBuddy token provider（可选，nil 时跳过实时拉取）。
+func (s *adminServiceImpl) SetCodeBuddyTokenProvider(p CodeBuddyCandidateTokenProvider) {
+	s.codeBuddyTokenProvider = p
 }

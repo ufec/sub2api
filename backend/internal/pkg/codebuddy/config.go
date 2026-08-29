@@ -25,13 +25,20 @@ type ConfigEnvelope struct {
 // accessToken 为 CodeBuddy OAuth access_token（作为 Bearer 鉴权）；
 // userID 对应账号 uid（X-User-Id 头，可选）；proxyURL 可选（直连或走代理）。
 // 返回去重、排序后的 ModelInfo 切片；拉取失败时返回错误，由调用方决定回落策略。
+// 等价于 FetchEnabledModelsFromBaseURL(DefaultBaseURL, ...)。
 func FetchEnabledModels(ctx context.Context, accessToken, userID, proxyURL string) ([]ModelInfo, error) {
+	return FetchEnabledModelsFromBaseURL(ctx, DefaultBaseURL, accessToken, userID, proxyURL)
+}
+
+// FetchEnabledModelsFromBaseURL 与 FetchEnabledModels 相同，但允许指定上游基地址
+//（账号 credentials["base_url"] 自定义上游或测试注入）。
+func FetchEnabledModelsFromBaseURL(ctx context.Context, baseURL, accessToken, userID, proxyURL string) ([]ModelInfo, error) {
 	accessToken = strings.TrimSpace(accessToken)
 	if accessToken == "" {
 		return nil, fmt.Errorf("codebuddy config: empty access token")
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, BuildConfigURL(DefaultBaseURL), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, BuildConfigURL(baseURL), nil)
 	if err != nil {
 		return nil, fmt.Errorf("build config request: %w", err)
 	}

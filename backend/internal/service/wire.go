@@ -896,6 +896,64 @@ func ProvideAPIKeyService(
 	return svc
 }
 
+// ProvideAdminService 构造 AdminService 并注入 CodeBuddy token provider。
+//
+// 注意：google/wire 只生成 provider 构造函数调用，不会生成任意方法调用，
+// 因此 SetCodeBuddyTokenProvider 的注入放在此包装函数内（而非依赖 wire 生成后的
+// 手动追加），这样 wire 重新生成 wire_gen.go 时注入不会被丢弃。
+func ProvideAdminService(
+	userRepo UserRepository,
+	groupRepo AdminGroupRepository,
+	accountRepo AdminAccountRepository,
+	proxyRepo ProxyRepository,
+	apiKeyRepo APIKeyRepository,
+	redeemCodeRepo RedeemCodeRepository,
+	userGroupRateRepo UserGroupRateRepository,
+	userRPMCache UserRPMCache,
+	billingCacheService *BillingCacheService,
+	proxyProber ProxyExitInfoProber,
+	proxyLatencyCache ProxyLatencyCache,
+	authCacheInvalidator APIKeyAuthCacheInvalidator,
+	entClient *dbent.Client,
+	settingService *SettingService,
+	defaultSubAssigner DefaultSubscriptionAssigner,
+	userSubRepo UserSubscriptionRepository,
+	privacyClientFactory PrivacyClientFactory,
+	runtimeBlocker AccountRuntimeBlocker,
+	affiliateService *AffiliateService,
+	compositeRouteRepo CompositeModelRouteRepository,
+	compositeResolver *CompositeRouteResolver,
+	channelCacheInvalidator ChannelCacheInvalidator,
+	codeBuddyTokenProvider *CodeBuddyTokenProvider,
+) AdminService {
+	svc := NewAdminService(
+		userRepo,
+		groupRepo,
+		accountRepo,
+		proxyRepo,
+		apiKeyRepo,
+		redeemCodeRepo,
+		userGroupRateRepo,
+		userRPMCache,
+		billingCacheService,
+		proxyProber,
+		proxyLatencyCache,
+		authCacheInvalidator,
+		entClient,
+		settingService,
+		defaultSubAssigner,
+		userSubRepo,
+		privacyClientFactory,
+		runtimeBlocker,
+		affiliateService,
+		compositeRouteRepo,
+		compositeResolver,
+		channelCacheInvalidator,
+	)
+	svc.SetCodeBuddyTokenProvider(codeBuddyTokenProvider)
+	return svc
+}
+
 // ProviderSet is the Wire provider set for all services
 var ProviderSet = wire.NewSet(
 	// Core services
@@ -917,7 +975,7 @@ var ProviderSet = wire.NewSet(
 	NewBillingService,
 	ProvideBillingCacheService,
 	NewAnnouncementService,
-	NewAdminService,
+	ProvideAdminService,
 	NewGatewayService,
 	ProvideOpenAIGatewayService,
 	ProvideImageStorageSettingService,

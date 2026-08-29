@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -78,6 +79,19 @@ func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id 
 	for _, model := range candidates {
 		seen[model] = struct{}{}
 	}
+	// CodeBuddy 走 /v3/config 实时拉取上游可用模型（自动刷新 token），失败回落账号
+	// credentials["model_mapping"] 键。其余平台沿用 model_mapping 键。
+	if platform == PlatformCodeBuddy {
+		liveModels := s.fetchCodeBuddyCandidates(ctx, accounts)
+		for _, model := range liveModels {
+			if _, ok := seen[model]; ok {
+				continue
+			}
+			seen[model] = struct{}{}
+			candidates = append(candidates, model)
+		}
+		return candidates, nil
+	}
 	for _, acc := range accounts {
 		if platform == PlatformComposite {
 			if !isConcreteRequestPlatform(acc.Platform) {
@@ -99,6 +113,52 @@ func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id 
 		}
 	}
 	return candidates, nil
+}
+
+// fetchCodeBuddyCandidates 从分组内 CodeBuddy 账号收集候选模型：所有 CodeBuddy 平台
+// 账号的 model_mapping 键（与其它平台语义一致）；OAuth 账号额外通过 /v3/config 实时
+// 拉取上游可用模型（自动刷新 token，与 OAuth 登录同步相同的代码路径）。单个账号失败
+// 静默跳过，不影响其它账号。
+func (s *adminServiceImpl) fetchCodeBuddyCandidates(ctx context.Context, accounts []Account) []string {
+	models := make([]string, 0)
+	for i := range accounts {
+		acc := &accounts[i]
+		if acc.Platform != PlatformCodeBuddy {
+			continue
+		}
+		// model_mapping 键总是纳入候选（实时拉取失败时的回落来源）。
+		for model := range acc.GetModelMapping() {
+			model = strings.TrimSpace(model)
+			if model == "" {
+				continue
+			}
+			models = append(models, model)
+		}
+
+		if !acc.IsCodeBuddyOAuth() || s.codeBuddyTokenProvider == nil {
+			continue
+		}
+		accessToken, err := s.codeBuddyTokenProvider.GetAccessToken(ctx, acc)
+		if err != nil || strings.TrimSpace(accessToken) == "" {
+			continue
+		}
+		live, err := codebuddy.FetchEnabledModelsFromBaseURL(ctx, acc.GetCodeBuddyBaseURL(), accessToken, acc.GetCredential("uid"), upstreamModelsProxyURL(acc))
+		if err != nil {
+			slog.Warn("admin_models_list_candidates.codebuddy_fetch_failed",
+				"account_id", acc.ID,
+				"error", err,
+			)
+			continue
+		}
+		for _, info := range live {
+			id := strings.TrimSpace(info.ID)
+			if id == "" || codebuddy.NonModelEntries[id] {
+				continue
+			}
+			models = append(models, id)
+		}
+	}
+	return dedupeAndSortModelIDs(models)
 }
 
 func (s *adminServiceImpl) ListCompositeRoutes(ctx context.Context, groupID int64) ([]CompositeModelRoute, error) {
