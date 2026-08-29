@@ -1108,6 +1108,15 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 	// Get available models from account configurations for the selected group platform.
 	availableModels := h.gatewayService.GetAvailableModels(c.Request.Context(), groupID, platform)
 	if apiKey != nil && apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled() {
+		// CodeBuddy：自定义列表是管理员显式挑选的展示列表，且请求侧模型名原样透传、
+		// 不依赖账号静态 model_mapping；候选列表来自实时 /v3/config，可能与静态
+		// credentials["models"] 不一致，交集过滤会误杀新勾选的模型。故直接生效。
+		if platform == service.PlatformCodeBuddy {
+			models := append([]string(nil), apiKey.Group.ModelsListConfig.Models...)
+			models = filterModelsByKeyWhitelist(models, apiKey)
+			writeCustomModelsList(c, platform, models)
+			return
+		}
 		fallbackModels := defaultModelIDsForPlatform(platform)
 		availableModels = filterModelsByCustomList(customModelsListSource(platform, availableModels, fallbackModels), fallbackModels, apiKey.Group.ModelsListConfig.Models)
 		availableModels = filterModelsByKeyWhitelist(availableModels, apiKey)
@@ -1219,6 +1228,11 @@ func (h *GatewayHandler) codexModelIDsForGroup(ctx context.Context, group *servi
 	availableModels := h.gatewayService.GetAvailableModels(ctx, groupID, platform)
 	fallbackModels := defaultCodexModelIDsForPlatform(platform)
 	if group.CustomModelsListEnabled() {
+		// CodeBuddy：自定义列表直接生效（同 Models，见上方说明），避免与静态
+		// 可用源求交集时误杀实时新增的模型。
+		if platform == service.PlatformCodeBuddy {
+			return append([]string(nil), group.ModelsListConfig.Models...)
+		}
 		return filterModelsByCustomList(
 			customModelsListSource(platform, availableModels, fallbackModels),
 			fallbackModels,

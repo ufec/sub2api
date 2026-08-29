@@ -713,6 +713,55 @@ func TestGatewayModels_CompositeCustomModelsListFiltersAcrossConcretePlatforms(t
 	require.Equal(t, []string{"gemini-2.5-flash", "ag-custom-model", "gpt-5.5", "kimi-custom", "glm-custom", "deepseek-custom"}, modelIDsForTest(got.Data))
 }
 
+// CodeBuddy 分组的自定义模型列表是管理员显式挑选的展示列表：候选来自实时 /v3/config，
+// 可能包含静态 credentials["models"] 尚未同步的新模型；请求侧模型名原样透传，
+// 交集过滤会误杀新勾选的模型。故列表应直接生效而非与静态可用源求交集。
+// 回归场景：分组勾选 hy3-x / hy4-preview（仅实时列表存在），/v1/models 必须全部返回。
+func TestGatewayModels_CodeBuddyCustomModelsListAppliesDirectlyWithoutIntersection(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	groupID := int64(44)
+	h := newGatewayModelsHandlerForTest(
+		&gatewayModelsAccountRepoStub{
+			byGroup: map[int64][]service.Account{
+				groupID: {
+					{
+						ID:       1,
+						Platform: service.PlatformCodeBuddy,
+						Type:     service.AccountTypeOAuth,
+						Credentials: map[string]any{
+							// 静态同步列表：不含实时新增的 hy3-x / hy4-preview。
+							"models": []any{"hy3", "glm-5.2"},
+						},
+					},
+				},
+			},
+		},
+	)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
+		Group: &service.Group{
+			ID:       groupID,
+			Platform: service.PlatformCodeBuddy,
+			ModelsListConfig: service.GroupModelsListConfig{
+				Enabled: true,
+				Models:  []string{"hy3", "hy3-x", "hy4-preview", "hy4-preview-x"},
+			},
+		},
+	})
+
+	h.Models(c)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var got gatewayModelsResponseForTest
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
+	require.Equal(t, []string{"hy3", "hy3-x", "hy4-preview", "hy4-preview-x"}, modelIDsForTest(got.Data))
+}
+
 func TestGatewayModels_CompositeUnmappedAccountsFallbackToLinkedPlatformsOnly(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
