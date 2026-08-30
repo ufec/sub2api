@@ -3446,6 +3446,7 @@
         :show-manual-option="true"
         :initial-input-method="'manual'"
         :initial-oauth-state="currentOAuthState"
+        :state-verified="form.platform === 'codebuddy' && codeBuddyVerified"
         :platform="form.platform"
         :show-project-id="geminiOAuthType === 'code_assist'"
         @generate-url="handleGenerateUrl"
@@ -3800,6 +3801,7 @@ import { useGeminiOAuth } from '@/composables/useGeminiOAuth'
 import { useAntigravityOAuth } from '@/composables/useAntigravityOAuth'
 import { useGrokOAuth } from '@/composables/useGrokOAuth'
 import { useCodeBuddyOAuth } from '@/composables/useCodeBuddyOAuth'
+import type { CodeBuddyTokenInfo } from '@/api/admin/codebuddy'
 import type {
   Proxy,
   AdminGroup,
@@ -3958,6 +3960,10 @@ const geminiOAuth = useGeminiOAuth() // For Gemini OAuth
 const antigravityOAuth = useAntigravityOAuth() // For Antigravity OAuth
 const grokOAuth = useGrokOAuth() // For Grok OAuth
 const codeBuddyOAuth = useCodeBuddyOAuth() // For CodeBuddy OAuth
+// CodeBuddy：校验成功后暂存的 token（state 会话一次性，不能重复兑换），
+// “完成授权”时才用它创建账号。
+const codeBuddyTokenInfo = ref<CodeBuddyTokenInfo | null>(null)
+const codeBuddyVerified = computed(() => !!codeBuddyTokenInfo.value)
 
 // Computed: current OAuth state for template binding
 const currentAuthUrl = computed(() => {
@@ -4573,6 +4579,10 @@ const expiresAtInput = computed({
 
 const canExchangeCode = computed(() => {
   const authCode = oauthFlowRef.value?.authCode || ''
+  if (form.platform === 'codebuddy') {
+    // CodeBuddy 无授权码输入：完成授权仅在“校验认证状态”成功后可用。
+    return codeBuddyVerified.value && !codeBuddyOAuth.loading.value
+  }
   if (form.platform === 'openai') {
     return authCode.trim() && openaiOAuth.sessionId.value && !openaiOAuth.loading.value
   }
@@ -5209,6 +5219,7 @@ const resetForm = () => {
   antigravityOAuth.resetState()
   grokOAuth.resetState()
   codeBuddyOAuth.resetState()
+  codeBuddyTokenInfo.value = null
   oauthFlowRef.value?.reset()
   antigravityMixedChannelConfirmed.value = false
   upstreamModelsPreviewed.value = false
@@ -5675,6 +5686,7 @@ const goBackToBasicInfo = () => {
   antigravityOAuth.resetState()
   grokOAuth.resetState()
   codeBuddyOAuth.resetState()
+  codeBuddyTokenInfo.value = null
   oauthFlowRef.value?.reset()
 }
 
@@ -5693,6 +5705,7 @@ const handleGenerateUrl = async () => {
   } else if (form.platform === 'grok') {
     await grokOAuth.generateAuthUrl(form.proxy_id)
   } else if (form.platform === 'codebuddy') {
+    codeBuddyTokenInfo.value = null
     await codeBuddyOAuth.generateAuthUrl(form.proxy_id)
   } else {
     await oauth.generateAuthUrl(addMethod.value, form.proxy_id)
@@ -6470,6 +6483,8 @@ const handleOpenAIValidateRT = (rt: string) => handleOpenAIBatchRT(rt)
 // 手动输入 Mobile RT
 const handleOpenAIValidateMobileRT = (rt: string) => handleOpenAIBatchRT(rt, OPENAI_MOBILE_RT_CLIENT_ID)
 
+// CodeBuddy：校验认证状态（用 state 换 token）。成功后暂存 token 并解锁“完成授权”；
+// 失败可重复点击重试。
 const handleVerifyAuthState = async (state: string) => {
   const stateToUse = (state || '').trim() || codeBuddyOAuth.state.value.trim()
   if (!stateToUse || !codeBuddyOAuth.sessionId.value) return
@@ -6485,15 +6500,24 @@ const handleVerifyAuthState = async (state: string) => {
     })
     if (!tokenInfo) return
 
-    const credentials = codeBuddyOAuth.buildCredentials(tokenInfo)
-    const extra = codeBuddyOAuth.buildExtraInfo(tokenInfo)
-    await createAccountAndFinish('codebuddy', 'oauth', credentials, extra)
+    codeBuddyTokenInfo.value = tokenInfo
+    appStore.showSuccess(t('admin.accounts.oauth.codebuddy.verifyAuthStateSuccess'))
   } catch (error: any) {
     codeBuddyOAuth.error.value = error.response?.data?.detail || t('admin.accounts.oauth.codebuddy.authFailed')
     appStore.showError(codeBuddyOAuth.error.value)
   } finally {
     codeBuddyOAuth.loading.value = false
   }
+}
+
+// CodeBuddy：完成授权（仅在“校验认证状态”成功后可用），用暂存的 token 创建账号。
+const handleCodeBuddyCompleteAuth = async () => {
+  const tokenInfo = codeBuddyTokenInfo.value
+  if (!tokenInfo) return
+
+  const credentials = codeBuddyOAuth.buildCredentials(tokenInfo)
+  const extra = codeBuddyOAuth.buildExtraInfo(tokenInfo)
+  await createAccountAndFinish('codebuddy', 'oauth', credentials, extra)
 }
 
 const handleCodeBuddyValidateRT = async (refreshTokenInput: string) => {
@@ -6902,6 +6926,8 @@ const handleExchangeCode = async () => {
       return handleAntigravityExchange(authCode)
     case 'grok':
       return handleGrokExchange(authCode)
+    case 'codebuddy':
+      return handleCodeBuddyCompleteAuth()
     default:
       return handleAnthropicExchange(authCode)
   }

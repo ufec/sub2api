@@ -138,10 +138,11 @@
         :platform="isOpenAI ? 'openai' : isGemini ? 'gemini' : isAntigravity ? 'antigravity' : isGrok ? 'grok' : isCodeBuddy ? 'codebuddy' : 'anthropic'"
         :show-project-id="isGemini && geminiOAuthType === 'code_assist'"
         :initial-oauth-state="codeBuddyOAuth.state.value"
+        :state-verified="isCodeBuddy && codeBuddyVerified"
         :initial-input-method="grokInitialInputMethod"
         @generate-url="handleGenerateUrl"
         @cookie-auth="handleCookieAuth"
-        @verify-auth-state="handleExchangeCode"
+        @verify-auth-state="handleVerifyAuthState"
         @validate-refresh-token="handleGrokValidateRefreshToken"
         @import-sso="handleGrokImportSSO"
       />
@@ -206,6 +207,7 @@ import { useGeminiOAuth } from '@/composables/useGeminiOAuth'
 import { useAntigravityOAuth } from '@/composables/useAntigravityOAuth'
 import { useGrokOAuth } from '@/composables/useGrokOAuth'
 import { useCodeBuddyOAuth } from '@/composables/useCodeBuddyOAuth'
+import type { CodeBuddyTokenInfo } from '@/api/admin/codebuddy'
 import type { Account } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -243,6 +245,10 @@ const geminiOAuth = useGeminiOAuth()
 const antigravityOAuth = useAntigravityOAuth()
 const grokOAuth = useGrokOAuth()
 const codeBuddyOAuth = useCodeBuddyOAuth()
+// CodeBuddy：校验成功后暂存的 token（state 会话一次性，不能重复兑换），
+// “完成授权”时才用它更新账号凭证。
+const codeBuddyTokenInfo = ref<CodeBuddyTokenInfo | null>(null)
+const codeBuddyVerified = computed(() => !!codeBuddyTokenInfo.value)
 
 // Refs
 const oauthFlowRef = ref<OAuthFlowExposed | null>(null)
@@ -328,7 +334,8 @@ const isManualInputMethod = computed(() => {
 
 const canExchangeCode = computed(() => {
   if (isCodeBuddy.value) {
-    return codeBuddyOAuth.state.value.trim() && codeBuddyOAuth.sessionId.value && !codeBuddyOAuth.loading.value
+    // 完成授权仅在“校验认证状态”成功后可用。
+    return codeBuddyVerified.value && !codeBuddyOAuth.loading.value
   }
   const authCode = oauthFlowRef.value?.authCode || ''
   const sessionId = currentSessionId.value
@@ -373,6 +380,7 @@ const resetState = () => {
   antigravityOAuth.resetState()
   grokOAuth.resetState()
   codeBuddyOAuth.resetState()
+  codeBuddyTokenInfo.value = null
   oauthFlowRef.value?.reset()
 }
 
@@ -395,35 +403,60 @@ const handleGenerateUrl = async () => {
   } else if (isGrok.value) {
     await grokOAuth.generateAuthUrl(props.account.proxy_id)
   } else if (isCodeBuddy.value) {
+    codeBuddyTokenInfo.value = null
     await codeBuddyOAuth.generateAuthUrl(props.account.proxy_id)
   } else {
     await claudeOAuth.generateAuthUrl(addMethod.value, props.account.proxy_id)
   }
 }
 
+// CodeBuddy：校验认证状态（用 state 换 token）。成功后暂存 token 并解锁“完成授权”；
+// 失败可重复点击重试。
+const handleVerifyAuthState = async (state: string) => {
+  if (!props.account) return
+  const stateToUse = (state || '').trim() || codeBuddyOAuth.state.value.trim()
+  if (!stateToUse || !codeBuddyOAuth.sessionId.value) return
+
+  codeBuddyOAuth.loading.value = true
+  codeBuddyOAuth.error.value = ''
+
+  try {
+    const tokenInfo = await codeBuddyOAuth.exchangeState({
+      state: stateToUse,
+      sessionId: codeBuddyOAuth.sessionId.value,
+      proxyId: props.account.proxy_id
+    })
+    if (!tokenInfo) return
+
+    codeBuddyTokenInfo.value = tokenInfo
+    appStore.showSuccess(t('admin.accounts.oauth.codebuddy.verifyAuthStateSuccess'))
+  } catch (error: any) {
+    codeBuddyOAuth.error.value = error.response?.data?.detail || t('admin.accounts.oauth.codebuddy.authFailed')
+    appStore.showError(codeBuddyOAuth.error.value)
+  } finally {
+    codeBuddyOAuth.loading.value = false
+  }
+}
+
 const handleExchangeCode = async () => {
   if (!props.account) return
 
-  // CodeBuddy re-auth: exchange the state from the generated auth URL for tokens.
+  // CodeBuddy 完成授权：用“校验认证状态”阶段换取的 token 更新账号凭证
+  // （state 会话一次性，不能重复兑换）。
   if (isCodeBuddy.value) {
-    const stateToUse = (oauthFlowRef.value?.oauthState || codeBuddyOAuth.state.value || '').trim()
-    if (!stateToUse || !codeBuddyOAuth.sessionId.value) return
+    const tokenInfo = codeBuddyTokenInfo.value
+    if (!tokenInfo) return
 
     codeBuddyOAuth.loading.value = true
     codeBuddyOAuth.error.value = ''
 
     try {
-      const tokenInfo = await codeBuddyOAuth.exchangeState({
-        state: stateToUse,
-        sessionId: codeBuddyOAuth.sessionId.value,
-        proxyId: props.account.proxy_id
-      })
-      if (!tokenInfo) return
-
       const credentials = codeBuddyOAuth.buildCredentials(tokenInfo)
+      const extra = codeBuddyOAuth.buildExtraInfo(tokenInfo)
       await adminAPI.accounts.update(props.account.id, {
         type: 'oauth',
-        credentials
+        credentials,
+        extra
       })
       const updatedAccount = await adminAPI.accounts.clearError(props.account.id)
       appStore.showSuccess(t('admin.accounts.reAuthorizedSuccess'))

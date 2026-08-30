@@ -1254,6 +1254,7 @@ export default {
           verifyAuthState: '校验认证状态',
           verifyingAuthState: '校验中...',
           verifyAuthStateHint: '使用生成授权链接时返回的 state 向 CodeBuddy/WorkBuddy 换取 access_token 与 refresh_token。',
+          verifyAuthStateSuccess: '校验成功，已获取 CodeBuddy/WorkBuddy Token，请点击“完成授权”。',
           refreshTokenAuth: '手动填写 RT',
           refreshTokenDesc: '输入已有的 CodeBuddy/WorkBuddy refresh token，支持批量（每行一个）。',
           refreshTokenPlaceholder: '粘贴您的 CodeBuddy/WorkBuddy refresh token...\n支持多个，每行一个',

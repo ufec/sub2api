@@ -1183,6 +1183,7 @@ export default {
           verifyAuthState: 'Verify Auth Status',
           verifyingAuthState: 'Verifying...',
           verifyAuthStateHint: 'Uses the state returned when generating the auth URL to exchange access_token and refresh_token from CodeBuddy/WorkBuddy.',
+          verifyAuthStateSuccess: 'Verified: CodeBuddy/WorkBuddy token obtained. Click "Complete Authorization" to finish.',
           refreshTokenAuth: 'Manual RT Input',
           refreshTokenDesc: 'Enter an existing CodeBuddy/WorkBuddy refresh token. Supports batch input, one per line.',
           refreshTokenPlaceholder: 'Paste your CodeBuddy/WorkBuddy refresh token...\nSupports multiple, one per line',

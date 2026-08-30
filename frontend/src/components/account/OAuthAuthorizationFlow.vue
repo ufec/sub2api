@@ -842,7 +842,7 @@
                   <button
                     type="button"
                     class="btn btn-primary w-full"
-                    :disabled="loading || !effectiveState"
+                    :disabled="loading || !effectiveState || stateVerified"
                     @click="handleVerifyAuthState"
                   >
                     <svg
@@ -978,10 +978,16 @@ interface Props {
   initialEmailPassword?: string
   platform?: AccountPlatform // Platform type for different UI/text
   showProjectId?: boolean // New prop to control project ID visibility
-  // initialOAuthState: the state returned when generating the auth URL. For platforms that
+  // initialOauthState: the state returned when generating the auth URL. For platforms that
   // exchange via state (e.g. CodeBuddy), the "verify auth state" button uses this
   // instead of requiring the user to paste a callback link/state manually.
-  initialOAuthState?: string
+  // The name must camel-case back from the kebab binding "initial-oauth-state";
+  // "initialOAuthState" would NOT match (camelize turns the binding into "initialOauthState")
+  // and the value silently lands in $attrs instead of props.
+  initialOauthState?: string
+  // stateVerified: the parent already exchanged the state for tokens; the verify button
+  // then stays disabled so the only remaining action is the final "complete" step.
+  stateVerified?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -1007,7 +1013,8 @@ const props = withDefaults(defineProps<Props>(), {
   initialInputMethod: 'manual',
   initialEmailPassword: '',
   platform: 'anthropic',
-  showProjectId: true
+  showProjectId: true,
+  stateVerified: false
 })
 
 const emit = defineEmits<{
@@ -1081,7 +1088,7 @@ const projectId = ref('')
 // effectiveState: prefer the state passed in from the generated auth URL (prop),
 // fall back to a state the user pasted into the input (for non-CodeBuddy flows).
 const effectiveState = computed(() => {
-  const fromProp = (props.initialOAuthState || '').trim()
+  const fromProp = (props.initialOauthState || '').trim()
   if (fromProp) return fromProp
   return oauthState.value.trim()
 })
